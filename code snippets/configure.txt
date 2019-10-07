@@ -1,0 +1,13 @@
+# Import socket and time modules
+import socket
+import time
+
+# Configure IP and port of Tello
+tello_address = ('192.168.10.1', 8889)
+
+# Create a UDP connection that we'll send the command to
+sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+
+# Bind the socket to a local UDP server
+sock.bind(('', 9000))
+

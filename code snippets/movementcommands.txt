@@ -1,0 +1,9 @@
+# Move in a square
+send("forward 25", 3)
+send("right 25", 3)
+send("back 25", 3)
+send("left 25", 3)
+
+# Turn clockwise, then turn back
+send("cw 180", 4)
+send("ccw 180", 1)

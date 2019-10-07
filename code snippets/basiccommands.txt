@@ -1,0 +1,11 @@
+# Send Tello into command mode
+send("command",1)
+
+# Receive response from Tello
+receive(1)
+
+# Ask Tello about battery status
+send("battery?", 1)
+
+# Receive battery response from Tello
+receive(1)
