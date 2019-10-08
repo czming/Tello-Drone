@@ -33,7 +33,6 @@ sock.bind(locaddr)
 
 def recv():
     count = 0
-    #listening for packets from the tello at port 1518
     while True: 
         try:
             #recv from returns a tuple with the data as the first element
@@ -68,10 +67,6 @@ while True:
     try:
         #note: tello works in units of cm and degrees
         #if sending instructions programatically, use time.delay to delay the instructions
-        #to allow tello to complete previous instruction before giving it a new instruction
-        #not sure what happens if instructions contradict though (it will still
-        #acknowledge but not sure which instruction will it execute)
-        time.sleep(0.5)
         msg = input("Command: ");
 
         if not msg:
@@ -86,6 +81,10 @@ while True:
         msg = msg.encode(encoding="utf-8")
         #sends the message
         sent = sock.sendto(msg, tello_address)
+        #to allow tello to complete previous instruction before giving it a new instruction
+        #not sure what happens if instructions contradict though (it will still
+        #acknowledge but not sure which instruction will it execute)
+        time.sleep(0.5)
     except KeyboardInterrupt:
         print ('\n . . .\n')
         sock.close()  
