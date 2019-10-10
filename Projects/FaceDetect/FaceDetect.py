@@ -4,14 +4,14 @@
 # In[ ]:
 
 
+import time
+import threading
+
 import numpy as np
-import argparse
 import cv2
 import imutils
-import time
 import tellopy
 import av
-import threading
 
 
 # In[ ]:
@@ -46,6 +46,43 @@ def drone_stop():
     elif movement_state == "down":    
         drone.down(0)
 
+        
+# Threaded function to move drone
+def drone_move(move):
+    # Access global variable
+    global drone_lock
+    SPEED = 10
+    
+    # Stop the drone's previous motion before performing a different one
+    drone_stop()
+    # Prevent any further commands to the drone in the meantime
+    drone_lock = True
+    
+    # Give the drone time to stop
+    time.sleep(0.1)
+    
+    # Perform new movement
+    if move == "front":
+        drone.forward(SPEED)
+    elif move == "back":
+        drone.backward(SPEED)
+    elif move == "down":
+        drone.down(SPEED*2)
+    elif move == "up":
+        drone.up(SPEED*2)
+    elif move == "left":
+        drone.left(SPEED)
+    elif move == "right":
+        drone.right(SPEED)
+
+    # Give the drone time to move
+    if move != "standby":
+        time.sleep(0.1)
+    
+    # Everything's done, ready for next move
+    drone_lock = False
+
+    
 # Function to calculate where the drone should move next
 def get_move(area, cx, cy, w, h):
     # Backwards/forwards sensitivity
@@ -80,42 +117,6 @@ def get_move(area, cx, cy, w, h):
     else:
         return "standby"
 
-# Threaded function to move drone
-def drone_move(move):
-    # Access global variable
-    global drone_lock
-    
-    SPEED = 10
-    
-    # Stop the drone's previous motion before performing a different one
-    drone_stop()
-    drone_lock = True
-    
-    # Give the drone time to stop
-    time.sleep(0.1)
-    
-    # Perform new movement
-    if move == "front":
-        drone.forward(SPEED)
-    elif move == "back":
-        drone.backward(SPEED)
-    elif move == "down":
-        drone.down(SPEED*2)
-    elif move == "up":
-        drone.up(SPEED*2)
-    elif move == "left":
-        drone.left(SPEED)
-    elif move == "right":
-        drone.right(SPEED)
-
-    # Give the drone time to move
-    if move != "standby":
-        time.sleep(0.1)
-    
-    # Everything's done, ready for next move
-    drone_lock = False
-  
-
 
 # In[ ]:
 
@@ -147,7 +148,7 @@ drone.wait_for_connection(3)
 drone.start_video()
 retry = 3
 container = None
-while container is None and 0 < retry:
+while container is None and retry > 0:
     retry -= 1
     try:
         container = av.open(drone.get_video_stream())
@@ -160,14 +161,20 @@ while container is None and 0 < retry:
 # In[ ]:
 
 
-# Takeoff!
+# Takeoff & move to an appropriate height!
 drone.takeoff()
+time.sleep(3)
+drone.up(20)
+time.sleep(3)
+drone.up(0)
 
 
 # In[ ]:
 
 
-while True:
+# Start displaying video feed and processing it
+running = True
+while running:
     frame_skip = 300
     try:
         for frame in container.decode(video=0):
@@ -178,7 +185,7 @@ while True:
 
             # Get an image from frame
             image = cv2.cvtColor(np.array(frame.to_image()), cv2.COLOR_RGB2BGR)
-            # Resize for better performance
+            # Resize the image
             image = imutils.resize(image, width=800)
             # Get dimensions of image
             (h, w) = image.shape[:2]
@@ -189,33 +196,33 @@ while True:
             net.setInput(blob)
             detections = net.forward()
             
-            # Get best detection of face
-            best_detection = None
-            best_confidence = 0
+            # Get closest face
+            largest_area = 0
             # loop over the detections and find best
             for i in range(0, detections.shape[2]):
                 # extract the confidence of the detection
                 confidence = detections[0, 0, i, 2]
-                # Assign the best detection
-                if confidence > CONFIDENCE and confidence > best_confidence:
-                    best_detection = detections[0,0,i]
-                    best_confidence = confidence
+                # If confidence of detection is above our threshold
+                if confidence > CONFIDENCE:
+                    # compute the (x, y)-coordinates of the bounding box for the
+                    # object
+                    box = detections[0, 0, i, 3:7] * np.array([w, h, w, h])
+                    (x1, y1, x2, y2) = box.astype("int")
 
+                    # Process the bounding box to find area
+                    area = (x2-x1)*(y2-y1)
+                    # If current detected face is the closest to drone
+                    if area > largest_area:
+                        largest_area = area
+                        # Find center point of face
+                        cx, cy = (x1+x2)//2, (y1+y2)//2
+                        
             # If we can find a face
-            if best_detection is not None:
-                # compute the (x, y)-coordinates of the bounding box for the
-                # object
-                box = best_detection[3:7] * np.array([w, h, w, h])
-                (x1, y1, x2, y2) = box.astype("int")
-
-                # Process the bounding box to find area and center point
-                area = (x2-x1)*(y2-y1)
-                cx, cy = (x1+x2)//2, (y1+y2)//2
-                
-                # Get the next move of the drone
+            if largest_area != 0:
+                # Get the next move the drone should make
                 move = get_move(area, cx, cy, w, h)
-                # If the move is different
-                # (i.e. drone not already performing the move)
+                # If the drone is not already performing the move and
+                # drone is not busy
                 if not drone_lock and movement_state != move:
                     # Move the drone in a separate thread as delay is involved
                     thread = threading.Thread(target=drone_move, args=(move,))
@@ -242,6 +249,8 @@ while True:
             # Land drone if "q" is pressed
             if key == ord("q"):
                 drone.land()
+                running = False
+                break
 
             # Skip some frames to keep up with drone
             frame_skip = 5
@@ -253,4 +262,10 @@ while True:
 
 
 drone.land()
+
+
+# In[ ]:
+
+
+
 
