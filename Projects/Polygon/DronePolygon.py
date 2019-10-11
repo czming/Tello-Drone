@@ -11,10 +11,10 @@ import time
 # Configure IP and port of Tello
 tello_address = ('192.168.10.1', 8889)
 
-# Create a UDP connection that we'll send the command to
+# Open a UDP socket that accepts an ipv4 address
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
-# Bind the socket to a local UDP server
+# Bind the socket to a local port to receive messages
 sock.bind(('', 9000))
 
 
@@ -35,6 +35,7 @@ def send(message, delay):
 # Function that listens for messages from Tello and prints them to the screen
 def receive(delay):
     try:
+        # Receive message of up to 128 bytes
         response, ip_address = sock.recvfrom(128)
         print("Received message: " + response.decode(encoding='utf-8') + " from Tello with IP: " + str(ip_address))
     except Exception as e:
@@ -65,7 +66,7 @@ step = 30
 
 
 # Send Tello into command mode
-send("command",2)
+send("command", 2)
 
 
 # In[ ]:
@@ -76,10 +77,16 @@ send("takeoff", 4)
 # For every side of the polygon
 for i in range(n):
     # Turn
-    send("cw {}".format(turning_angle), 3)
+    send("cw " + str(turning_angle), 3)
     # Move forward
-    send("forward {}".format(step), 3)
+    send("forward " + str(step), 3)
 
 # Land after finishing polygon
-send("land",1)
+send("land", 1)
+
+
+# In[ ]:
+
+
+
 

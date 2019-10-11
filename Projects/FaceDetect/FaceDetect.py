@@ -30,6 +30,13 @@ drone_lock = False
 # In[ ]:
 
 
+# Set up machine learning model
+net = cv2.dnn.readNetFromCaffe(CAFFE_PROTOTXT, CAFFE_MODEL)
+
+
+# In[ ]:
+
+
 # Function to stop movement of drone
 def drone_stop():
     global movement_state
@@ -95,8 +102,14 @@ def get_move(area, cx, cy, w, h):
     REF_Y = h//2
     TRANSLATE_BUFFER = 100
     
+    # Move back
+    if area > REF_AREA + AREA_BUFFER:
+        return "back"
+    # Move front
+    elif MIN_AREA < area < REF_AREA - AREA_BUFFER:
+        return "front"
     # Move down
-    if cy > REF_Y + TRANSLATE_BUFFER:
+    elif cy > REF_Y + TRANSLATE_BUFFER:
         return "down"
     # Move up
     elif cy < REF_Y - TRANSLATE_BUFFER:
@@ -107,22 +120,9 @@ def get_move(area, cx, cy, w, h):
     # Move left
     elif cx < REF_X - TRANSLATE_BUFFER:
         return "left"
-    # Move back
-    elif area > REF_AREA + AREA_BUFFER:
-        return "back"
-    # Move front
-    elif MIN_AREA < area < REF_AREA - AREA_BUFFER:
-        return "front"
     # Stop moving
     else:
         return "standby"
-
-
-# In[ ]:
-
-
-# Set up machine learning model
-net = cv2.dnn.readNetFromCaffe(CAFFE_PROTOTXT, CAFFE_MODEL)
 
 
 # In[ ]:
@@ -163,7 +163,7 @@ while container is None and retry > 0:
 
 # Takeoff & move to an appropriate height!
 drone.takeoff()
-time.sleep(3)
+time.sleep(4)
 drone.up(20)
 time.sleep(3)
 drone.up(0)
